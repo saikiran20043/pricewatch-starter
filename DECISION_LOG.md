@@ -14,9 +14,13 @@ hours_spent: 0
 Keep this to one page. Bullet points are fine. We read this before we read your code.
 
 ## Stage 1 — the false alerts
-
-<!-- What caused them, and how did you establish it? -->
-
+- I did not assume the reporter's watcher hypothesis was the only cause. I reproduced the failing Maple test and traced the values through extraction, normalization, and alert evaluation.
+- I found three contributing issues:
+  - `rule_drop_pct` calculated the percentage relative to the current price instead of the previous price. I changed the denominator to the previous price and added a regression test showing that 10000 → 8000 is a 20% drop, not 25%.
+  - `parse_money()` did not handle European comma-decimal formatting. For example, `720,92 €` was interpreted as 7,209,200 cents instead of 72,092 cents. I updated the shared normalizer and added coverage for this format while preserving the existing USD tests.
+  - Maple's `.price .price` selector could select the compare-at price before the sale/current price. I changed the adapter to prefer `.price--sale` and added tests for both sale and regular products.
+- Verification: the full local test suite passes, and two scans of the running Maple fake store produced identical `price_cents` values for all 12 products; the watcher produced no alert for the unchanged prices.
+- I did not treat the Zon scan as proof of stable pricing because its current adapter returned `price_cents=None` for the products scanned. That remains separate work for the later extraction levels.
 ## Stage 2 — the median
 
 <!-- How is the median computed, and why? What did you decide about edge cases? -->
