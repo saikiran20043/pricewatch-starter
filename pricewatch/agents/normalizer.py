@@ -34,15 +34,34 @@ def parse_money(text: str, default_currency: Optional[str] = None) -> tuple[Opti
     if text is None:
         return None, default_currency
     currency = detect_currency(text, default_currency)
-    digits = re.sub(r"[^\d.]", "", text)
-    if not digits or digits == ".":
+    cleaned = re.sub(r"[^\d,.]", "", text)
+
+    if not cleaned:
         return None, currency
+
+    # Handle European decimal format, e.g. "720,92"
+    if "," in cleaned and "." not in cleaned:
+        parts = cleaned.split(",")
+        if len(parts) == 2 and len(parts[1]) == 2:
+            cleaned = f"{parts[0]}.{parts[1]}"
+        else:
+            cleaned = cleaned.replace(",", "")
+
+    # Handle formats containing both separators.
+    elif "," in cleaned and "." in cleaned:
+        if cleaned.rfind(",") > cleaned.rfind("."):
+            # 1.299,00 -> 1299.00
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            # 1,299.00 -> 1299.00
+            cleaned = cleaned.replace(",", "")
+
     try:
-        amount = float(digits)
+        amount = float(cleaned)
     except ValueError:
         return None, currency
-    return int(round(amount * 100)), currency
 
+    return int(round(amount * 100)), currency
 
 def unit_price(price_cents: Optional[int], pack_size: int) -> Optional[int]:
     if price_cents is None or pack_size <= 1:

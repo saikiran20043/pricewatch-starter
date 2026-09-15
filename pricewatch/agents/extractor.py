@@ -56,7 +56,8 @@ def extract_corner(client: Client, store: str, url: str, html: str) -> Observati
 def extract_maple(client: Client, store: str, url: str, html: str) -> Observation:
     soup = BeautifulSoup(html, "html.parser")
     name = soup.select_one(".product__title").get_text(strip=True)
-    price_el = soup.select_one(".price .price")  # first price element in the price block
+    # Prefer the sale/current price; fall back to the existing price selector.
+    price_el = soup.select_one(".price--sale") or soup.select_one(".price .price")
     price_cents, currency = parse_money(price_el.get_text(" ", strip=True), "EUR")
     compare_el = soup.select_one(".price--compare")
     compare, _ = parse_money(compare_el.get_text(" ", strip=True), currency) if compare_el else (None, None)

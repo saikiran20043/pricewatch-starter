@@ -11,3 +11,7 @@ def test_usd_thousands():
 
 def test_no_number():
     assert parse_money("Price unavailable", "USD") == (None, "USD")
+
+
+def test_eur_comma_decimal():
+    assert parse_money("720,92 €", "EUR") == (72092, "EUR")
