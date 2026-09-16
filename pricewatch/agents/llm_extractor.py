@@ -26,13 +26,52 @@ def clean_html(html: str, limit: int = 12000) -> str:
     return text[:limit]
 
 
+def _json_object(raw: str) -> dict:
+    text = raw.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+    try:
+        data = json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _pack_size(value: object) -> int:
+    pack_size = _optional_int(value)
+    return pack_size if pack_size is not None and pack_size > 0 else 1
+
+
+def _text(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
 def extract_with_llm(provider: Provider, store: str, url: str, html: str, timeout: float = 30.0) -> Observation:
     user = f"URL: {url}\n\nPAGE TEXT:\n{clean_html(html)}"
     raw = provider.complete(SYSTEM, user, metadata={"source_url": url, "store": store}, timeout=timeout)
-    data = json.loads(raw)
+    data = _json_object(raw)
+    availability = data.get("availability")
+    if availability not in {"in_stock", "out_of_stock", "unknown"}:
+        availability = "unknown"
     return Observation(
-        store=store, product_id=url.rstrip("/").split("/")[-1], url=url, name=data.get("name") or "",
-        price_cents=data.get("price_cents"), currency=data.get("currency") or "",
-        compare_at_cents=data.get("compare_at_cents"), availability=data.get("availability") or "unknown",
-        pack_size=int(data.get("pack_size") or 1), source="llm",
+        store=store, product_id=url.rstrip("/").split("/")[-1], url=url, name=_text(data.get("name")),
+        price_cents=_optional_int(data.get("price_cents")), currency=_text(data.get("currency")),
+        compare_at_cents=_optional_int(data.get("compare_at_cents")), availability=availability,
+        pack_size=_pack_size(data.get("pack_size")), source="llm",
     )
