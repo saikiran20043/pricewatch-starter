@@ -1,0 +1,58 @@
+[
+	{
+		"id": "nk-003",
+		"field": "price_cents",
+		"labelled": 787800,
+		"corrected": 761600,
+		"reason": "label uses former price instead of current price."
+	},
+	{
+		"id": "nk-014",
+		"field": "pack_size",
+		"labelled": 1,
+		"corrected": 6,
+		"reason": "page states \"pakke à 6\"."
+	},
+	{
+		"id": "nk-022",
+		"field": "availability",
+		"labelled": "in_stock",
+		"corrected": "out_of_stock",
+		"reason": "page explicitly says \"Utsolgt\"."
+	},
+	{
+		"id": "nk-031",
+		"field": "price_cents",
+		"labelled": 1267000,
+		"corrected": 1276000,
+		"reason": "page shows kr 12 760,00."
+	},
+	{
+		"id": "bz-047",
+		"field": "price_cents",
+		"labelled": 1220300,
+		"corrected": 354000,
+		"reason": "label uses M.R.P. instead of the current Deal Price."
+	},
+	{
+		"id": "bz-052",
+		"field": "price_cents",
+		"labelled": 60200,
+		"corrected": 1806200,
+		"reason": "label uses EMI amount instead of product price."
+	},
+	{
+		"id": "bz-058",
+		"field": "price_cents",
+		"labelled": 1755000,
+		"corrected": 8775100,
+		"reason": "label uses per-unit/kg price instead of the pack price."
+	},
+	{
+		"id": "bz-070",
+		"field": "availability",
+		"labelled": "in_stock",
+		"corrected": "out_of_stock",
+		"reason": "page explicitly says \"Temporarily out of stock\"."
+	}
+]

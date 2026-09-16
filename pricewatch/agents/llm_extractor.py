@@ -18,6 +18,10 @@ SYSTEM = """You extract e-commerce offer data from a product page and answer ONL
 price_cents is the price of the pack actually being sold, in minor units. If there is no price, use null."""
 
 
+class MalformedLLMResponse(ValueError):
+    """Raised when a provider response is not a JSON object."""
+
+
 def clean_html(html: str, limit: int = 12000) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for t in soup(["script", "style", "noscript", "svg"]):
@@ -26,16 +30,16 @@ def clean_html(html: str, limit: int = 12000) -> str:
     return text[:limit]
 
 
-def _json_object(raw: str) -> dict:
-    text = raw.strip()
+def _json_object(raw: str) -> dict | None:
+    text = raw.strip() if isinstance(raw, str) else ""
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
     if fenced:
         text = fenced.group(1).strip()
     try:
         data = json.loads(text)
     except (TypeError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _optional_int(value: object) -> int | None:
@@ -62,10 +66,12 @@ def _text(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def extract_with_llm(provider: Provider, store: str, url: str, html: str, timeout: float = 30.0) -> Observation:
-    user = f"URL: {url}\n\nPAGE TEXT:\n{clean_html(html)}"
-    raw = provider.complete(SYSTEM, user, metadata={"source_url": url, "store": store}, timeout=timeout)
+def observation_from_response(raw: str, store: str, url: str, *, strict: bool = False) -> Observation:
     data = _json_object(raw)
+    if data is None:
+        if strict:
+            raise MalformedLLMResponse("provider response was not a JSON object")
+        data = {}
     availability = data.get("availability")
     if availability not in {"in_stock", "out_of_stock", "unknown"}:
         availability = "unknown"
@@ -75,3 +81,9 @@ def extract_with_llm(provider: Provider, store: str, url: str, html: str, timeou
         compare_at_cents=_optional_int(data.get("compare_at_cents")), availability=availability,
         pack_size=_pack_size(data.get("pack_size")), source="llm",
     )
+
+
+def extract_with_llm(provider: Provider, store: str, url: str, html: str, timeout: float = 30.0) -> Observation:
+    user = f"URL: {url}\n\nPAGE TEXT:\n{clean_html(html)}"
+    raw = provider.complete(SYSTEM, user, metadata={"source_url": url, "store": store}, timeout=timeout)
+    return observation_from_response(raw, store, url)
