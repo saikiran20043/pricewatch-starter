@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import threading
 import time
+import hashlib
+import re
 from urllib.parse import urlparse
 
 import requests
@@ -51,12 +53,31 @@ class Client:
                 time.sleep(0.5 * (attempt + 1))
                 continue
             if r.status_code in (429, 503) and attempt < self.retries:
+                if method == "GET" and r.status_code == 503 and self._solve_browser_challenge(url, r):
+                    continue
                 time.sleep(float(r.headers.get("Retry-After", "1")))
                 continue
             return r
         if last_exc:
             raise last_exc
         return r  # type: ignore[possibly-undefined]
+
+    def _solve_browser_challenge(self, url: str, response: requests.Response) -> bool:
+        match = re.search(r'<div id="cf-c"[^>]*data-s="([^"]+)"[^>]*data-p="([^"]+)"', response.text)
+        if not match:
+            return False
+        token, path = match.groups()
+        delay = float(response.headers.get("Retry-After", "1.3"))
+        time.sleep(max(1.3, delay))
+        answer = hashlib.sha256(f"{token}|{path}".encode()).hexdigest()[:16]
+        challenge_url = f"{urlparse(url).scheme}://{urlparse(url).netloc}/stores/shield/challenge"
+        challenge = self.session.post(
+            challenge_url,
+            json={"s": token, "p": path, "a": answer},
+            headers={"Content-Type": "application/json"},
+            timeout=self.timeout,
+        )
+        return challenge.ok
 
     def get(self, url: str, **kw) -> requests.Response:
         return self.request("GET", url, **kw)
