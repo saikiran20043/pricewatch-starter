@@ -1,7 +1,7 @@
 ---
 # Machine-read by the autograder. Keep the keys; fill in the values.
 name: ""
-median_basis: ""        # the median your below_median rule computes: "observations" or "daily_close"
+median_basis: "observations"        # the median your below_median rule computes: "observations" or "daily_close"
 levels_attempted: []    # e.g. [1, 2, 3, 4, 5]
 llm_provider: ""        # e.g. "openai", "anthropic", "gemini"
 llm_model: ""
@@ -23,7 +23,11 @@ Keep this to one page. Bullet points are fine. We read this before we read your 
 - I did not treat the Zon scan as proof of stable pricing because its current adapter returned `price_cents=None` for the products scanned. That remains separate work for the later extraction levels.
 ## Stage 2 — the median
 
-<!-- How is the median computed, and why? What did you decide about edge cases? -->
+- `below_median` uses all valid prior observations for the same product in the trailing window, based on actual `observed_at` timestamps. The current observation is excluded, and multiple observations on the same day count individually.
+- Observations with `price_cents == null` are ignored, and at least three valid prior observations are required. A currency mismatch prevents the rule from firing and records a note on the current observation.
+- The threshold is inclusive: `current <= median * (1 - pct / 100)`. `previous_cents` contains the rounded median.
+- When both rules match, `below_median` takes priority so at most one alert is emitted per product/evaluation.
+- Verification: `pricewatch watch --history fixtures/history.jsonl --new fixtures/new.jsonl --rules alerts.yaml` ran successfully and produced the expected `below_median` alert for Demo Kettle.
 
 ## Levels 3–5 — how you got in
 
