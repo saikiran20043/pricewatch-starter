@@ -2,7 +2,7 @@
 # Machine-read by the autograder. Keep the keys; fill in the values.
 name: "SaiKiran Doddi"
 median_basis: "observations"        # the median your below_median rule computes: "observations" or "daily_close"
-levels_attempted: []    # e.g. [1, 2, 3, 4, 5]
+levels_attempted: [1, 2, 3, 4, 5]   # e.g. [1, 2, 3, 4, 5]
 llm_provider: ""        # e.g. "openai", "anthropic", "gemini"
 llm_model: ""
 ai_tools_used: ["ChatGPT", "GitHub Copilot"]       # e.g. ["Claude Code", "Cursor", "ChatGPT"]
@@ -31,18 +31,42 @@ Keep this to one page. Bullet points are fine. We read this before we read your 
 
 ## Levels 3–5 — how you got in
 
-- The task does not define Levels 3, 4, or 5 individually. For this stage, I implemented the generic LLM fallback extractor required by ISSUE-3 rather than inventing separate level-specific adapters.
-- The extractor cleans page HTML and sends a store-independent prompt to the configured provider. This was chosen because the assignment requires the fallback to generalize beyond stores with dedicated adapters.
-- I did not add store-specific adapters or hardcoded snapshot/markup rules for the 90 evaluation pages, because Part C evaluates the generic extractor on hidden pages from unknown stores.
+The README defines Levels 3–5 as progressively harder store-extraction
+problems: Zon uses unstable marketplace-style markup with multiple prices,
+Shield introduces a server-provided access challenge, and Flux is an SPA
+whose price is obtained through a signed API.
+
+For Level 3 (Zon), I replaced brittle generated-class assumptions with
+semantic/structural extraction. The extractor prioritizes the actual pack
+offer when present, excludes list/seller/per-unit prices, and preserves
+cart-only products as unavailable price observations.
+
+For Level 4 (Shield Outfitters), I implemented the server-provided challenge
+flow using the token/path supplied by the page, respecting the server's
+Retry-After/delay behavior and preserving the session clearance cookie.
+Product data is then extracted from the embedded window.__STATE__ object.
+
+For Level 5 (Flux), I implemented extraction from the SPA's served bundle and
+signed GraphQL API. The extractor interprets the API's amount according to
+its unit: minor values are already in minor currency units, while major
+values are converted to minor units. Transient API failures use the existing
+bounded Retry-After handling.
+
+The implementation was validated against a non-public STORE_SEED=mytest:
+Zon returned 3 priced products and 9 explicit cart-only/no-price cases,
+Shield returned 10 priced products, and Flux returned 12 priced products.
+Focused Level 3–5 tests and the full test suite passed.
 ## Stage 3 — what the model got wrong
 
 - Part A uses one generic prompt and cleans page HTML before sending it to the provider. It accepts normal or fenced JSON, validates the fields, and keeps malformed responses separate from provider timeout/error failures so the harness can continue.
 - Part B evaluates all 90 supplied snapshots with overall and per-store metrics, cached successful responses, latency percentiles, and deterministic token/cost estimates. I did not run a real OpenAI or Anthropic evaluation because no active API key was available; the local Echo provider was used only as a pipeline sanity check, so I have no real model failure pattern or accuracy claim.
 - I reviewed all 90 labels against their pages. I recorded 8 clear issues in `eval/out/label_issues.json`, kept 7 cases ambiguous, and found no obvious issue in the remaining 75 entries.
 
-## Where AI helped and where it didn't
+**## Where AI helped and where it didn't**
 
-- ChatGPT helped with reasoning about the existing architecture, tracing the watcher/extractor/evaluator paths, and shaping focused regression tests. I still checked the page evidence directly and used the test suite to verify behavior; no real provider result was treated as evidence of model quality.
+- ChatGPT helped with reasoning about the existing architecture, tracing the watcher/extractor/evaluator paths, and shaping focused regression tests.
+- GitHub Copilot was used in VS Code for focused implementation and test changes. I reviewed the generated diffs, checked the implementation against the observed page behavior, and ran the test suite rather than accepting generated changes blindly.
+- I also checked the fake-store behavior directly with a non-public seed before accepting the Level 3–5 implementation.
 
 ## If I had another day
 
